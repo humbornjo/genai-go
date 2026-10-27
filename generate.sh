@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
-# Regenerates the Go semantic convention code from
-# https://github.com/open-telemetry/semantic-conventions-genai
+# Regenerates the Go semantic convention code from the pinned
+# open-telemetry/semantic-conventions-genai submodule.
 #
-# Usage: ./generate.sh [<genai-semconv-ref>]   # default: main
+# Usage: ./generate.sh
 #
-# Requirements: git, curl, tar, go, and gofmt. The Weaver release pinned by
-# the upstream schema is downloaded and checksum-verified under ./bin.
+# Requirements: curl, tar, go, and gofmt. The Weaver release pinned by the
+# upstream schema is downloaded and checksum-verified under ./bin.
 set -euo pipefail
 
-REF="${1:-main}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+UPSTREAM="$ROOT/upstream"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-if [ -n "${UPSTREAM_DIR:-}" ]; then
-  echo ">> using pre-cloned upstream at $UPSTREAM_DIR"
-  ln -s "$UPSTREAM_DIR" "$WORK/upstream"
-else
-  echo ">> cloning open-telemetry/semantic-conventions-genai @ $REF"
-  git clone --depth 1 --branch "$REF" \
-    https://github.com/open-telemetry/semantic-conventions-genai.git "$WORK/upstream"
+if [ ! -f "$UPSTREAM/versions.env" ]; then
+  echo "upstream schema submodule is not initialized; run git submodule update --init upstream" >&2
+  exit 1
 fi
 
-WEAVER_VERSION="$(sed -n 's/^WEAVER_VERSION=//p' "$WORK/upstream/versions.env")"
+WEAVER_VERSION="$(sed -n 's/^WEAVER_VERSION=//p' "$UPSTREAM/versions.env")"
 if [ -z "$WEAVER_VERSION" ]; then
   echo "upstream versions.env does not pin WEAVER_VERSION" >&2
   exit 1
@@ -62,16 +58,13 @@ fi
 
 echo ">> weaver registry generate"
 "$ROOT/bin/weaver" registry generate \
-  -r "$WORK/upstream/model" \
+  -r "$UPSTREAM/model" \
   --v2 \
   -t "$ROOT/templates" \
-  --param tag="$REF" \
   go "$ROOT"
 
 gofmt -w "$ROOT/attribute_group.go" "$ROOT/genaiconv" "$ROOT/mcpconv"
 
 echo ">> go build ./..."
 (cd "$ROOT" && go build ./... && go vet ./...)
-
-git -C "$WORK/upstream" rev-parse HEAD > "$ROOT/.upstream-sha"
 echo ">> done"

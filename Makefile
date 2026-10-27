@@ -1,10 +1,12 @@
-REF ?= main
-
-.PHONY: all vendor test
+.PHONY: all vendor update test
 all: test
 
 vendor:
-	./generate.sh "$(REF)"
+	./generate.sh
+
+update:
+	git submodule update --init --remote upstream
+	./generate.sh
 
 test:
 	go test ./...
