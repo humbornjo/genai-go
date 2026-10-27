@@ -19,13 +19,15 @@ This module exists because the upstream repository has no official Go artifact y
 - `attribute_group.go`: attribute keys, typed enum values, and attribute helper functions.
 - `genaiconv/metric.go` and `mcpconv/metric.go`: typed metric instruments and their recording helpers.
 
-The compatibility changes are maintained in the generation inputs, not as post-generation patches:
+The schema submodule and generator templates have different upstreams: `semantic-conventions-genai` provides schema YAML but no Go templates, while the templates forked here come from `opentelemetry-go/semconv/templates`. Their compatibility changes are maintained in the generation inputs, not as post-generation patches:
 
 - `templates/registry/go/` contains the opentelemetry-go semconv templates with a small patch set for Weaver's v2 registry representation: `attr.key` instead of `attr.name`, `metric.name` instead of `metric.metric_name`, v2 filters, and template-typed attribute helpers.
 - `internal/metricpool/pool.go` is maintained support code used by the generated metric methods. The official metric template imports OpenTelemetry's own `semconv/internal/metricpool`, which Go's `internal` import rules make inaccessible to this module, so the template imports this local equivalent.
 - `doc.go` is maintained package documentation and declares `SchemaURL`.
 
 Keeping the changes in templates is necessary because regeneration overwrites the generated files. Editing those outputs directly would either lose the changes on the next run or make manual CI generation non-reproducible.
+
+Adding `opentelemetry-go` as another submodule would not eliminate the local templates: Weaver still needs the patched template directory, so generation would require an additional copy-and-patch step.
 
 ## Example
 
